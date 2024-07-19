@@ -1,4 +1,5 @@
 port: 7880
+#environment: dev
 bind_addresses:
   - "0.0.0.0"
 rtc:
@@ -6,18 +7,15 @@ rtc:
   port_range_start: 50100
   port_range_end: 50200
   use_external_ip: false
-#redis:
-#    address: redis:6379
-#    username: ""
-#    password: ""
-#    db: 0
+redis:
+  address: 35.247.254.97:6379 # IP Local machine
+  username: ""
+  password: ""
+  db: 0
 turn:
-  enabled: false
-  domain: localhost
-  cert_file: ""
-  key_file: ""
+  enabled: true
+  domain: turn.jefferson.tcc-engenharia.online
   tls_port: 5349
-  udp_port: 443
   external_tls: true
 keys:
   devkey: secret
