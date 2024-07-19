@@ -41,7 +41,8 @@ export interface ConfigOptions {
    * be disabled.
    */
   opentelemetry?: {
-    collector_url: string;
+    collector_url_traces: string;
+    collector_url_metrics?: string;
   };
 
   // Describes the default homeserver to use. The same format as Element Web
@@ -65,21 +66,11 @@ export interface ConfigOptions {
   };
 
   /**
-   * TEMPORARY experimental features.
+   * Allow to join a group calls without audio and video.
+   * TEMPORARY: Is a feature that's not proved and experimental
    */
   features?: {
-    /**
-     * Allow to join group calls without audio and video.
-     */
-    feature_group_calls_without_video_and_audio?: boolean;
-    /**
-     * Send device-specific call session membership state events instead of
-     * legacy user-specific call membership state events.
-     * This setting has no effect when the user joins an active call with
-     * legacy state events. For compatibility, Element Call will always join
-     * active legacy calls with legacy state events.
-     */
-    feature_use_device_session_member_events?: boolean;
+    feature_group_calls_without_video_and_audio: boolean;
   };
 
   /**
