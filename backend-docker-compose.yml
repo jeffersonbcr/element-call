@@ -2,43 +2,103 @@ version: "3.9"
 
 networks:
   lkbackend:
+  traefik:
+    external: true
 
 services:
+  redis:
+    image: redis:alpine
+    command: redis-server /etc/redis.conf
+    ports:
+      - 6379:6379
+    volumes:
+      - ./backend/redis.conf:/etc/redis.conf
+    labels:
+      - traefik.enable=true
+      - traefik.tcp.routers.redis.rule=HostSNI(`*`)
+      - traefik.tcp.routers.redis.entryPoints=redis
+      - traefik.tcp.routers.redis.service=redis
+      - traefik.tcp.services.redis.loadbalancer.server.port=6379
+    networks:
+      - lkbackend
+      - traefik
+
+  element-call:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./config.json/:/app/config.json
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.http-element-call.entryPoints=web
+      - traefik.http.routers.http-element-call.rule=Host(`call.jefferson.tcc-engenharia.online`)
+      - traefik.http.middlewares.https_redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.https_redirect.redirectscheme.permanent=true
+      - traefik.http.routers.http-element-call.middlewares=https_redirect
+      - traefik.http.routers.https-element-call.entryPoints=web-secure
+      - traefik.http.routers.https-element-call.rule=Host(`call.jefferson.tcc-engenharia.online`)
+      - traefik.http.routers.https-element-call.service=element-call
+      - traefik.http.routers.https-element-call.tls=true
+      - traefik.http.services.element-call.loadbalancer.server.port=8080
+      - traefik.http.routers.https-element-call.tls.certResolver=default
+    networks:
+      - lkbackend
+      - traefik
+
   auth-service:
     image: ghcr.io/element-hq/lk-jwt-service:latest-ci
     hostname: auth-server
     ports:
       - 8881:8080
     environment:
-      - LIVEKIT_URL=ws://localhost:7880
+      - LIVEKIT_URL=wss://livekit-wss.jefferson.tcc-engenharia.online:443
       - LIVEKIT_KEY=devkey
       - LIVEKIT_SECRET=secret
     deploy:
       restart_policy:
         condition: on-failure
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.http-auth-service.entryPoints=web
+      - traefik.http.routers.http-auth-service.rule=Host(`livekit.jefferson.tcc-engenharia.online`)
+      - traefik.http.middlewares.https_redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.https_redirect.redirectscheme.permanent=true
+      - traefik.http.routers.http-auth-service.middlewares=https_redirect
+      - traefik.http.routers.https-auth-service.entryPoints=web-secure
+      - traefik.http.routers.https-auth-service.rule=Host(`livekit.jefferson.tcc-engenharia.online`)
+      - traefik.http.routers.https-auth-service.service=auth-service
+      - traefik.http.routers.https-auth-service.tls=true
+      - traefik.http.routers.https-auth-service.tls.certResolver=default
+      - traefik.http.services.auth-service.loadbalancer.server.port=8080
     networks:
       - lkbackend
+      - traefik
 
   livekit:
     image: livekit/livekit-server:latest
     command: --dev --config /etc/livekit.yaml
     restart: unless-stopped
-    ports:
-      - "7880:7880"
-      - "7881:7881"
-      - "7882:7882"
-      - "50100-50200:50100-50200"
+    user: "321:321"
     volumes:
       - ./backend/livekit.yaml:/etc/livekit.yaml
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.http-livekit.entryPoints=web
+      - traefik.http.routers.http-livekit.rule=Host(`livekit-wss.jefferson.tcc-engenharia.online`)
+      - traefik.http.middlewares.https_redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.https_redirect.redirectscheme.permanent=true
+      - traefik.http.routers.http-livekit.middlewares=https_redirect
+      - traefik.http.routers.https-livekit.entryPoints=web-secure
+      - traefik.http.routers.https-livekit.rule=Host(`livekit-wss.jefferson.tcc-engenharia.online`)
+      - traefik.http.routers.https-livekit.service=livekit
+      - traefik.http.routers.https-livekit.tls=true
+      - traefik.http.routers.https-livekit.tls.certResolver=default
+      - traefik.http.services.livekit.loadbalancer.server.port=7880
+      - traefik.tcp.routers.livekit-wss.rule=HostSNI(`livekit-wss.jefferson.tcc-engenharia.online`)
+      - traefik.tcp.routers.livekit-wss.entryPoints=livekit-wss
+      - traefik.tcp.routers.livekit-wss.tls=true
+      - traefik.tcp.routers.livekit-wss.tls.certResolver=default
+      - traefik.tcp.services.livekit-wss.loadbalancer.server.port=7880
     networks:
       - lkbackend
-
-  redis:
-    image: redis:6-alpine
-    command: redis-server /etc/redis.conf
-    ports:
-      - 6379:6379
-    volumes:
-      - ./backend/redis.conf:/etc/redis.conf
-    networks:
-      - lkbackend
+      - traefik
