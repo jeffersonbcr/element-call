@@ -1,41 +1,58 @@
 receivers:
   otlp:
     protocols:
+      grpc:
       http:
         endpoint: 0.0.0.0:4318
         cors:
           allowed_origins:
-            # This can't be '*' because opentelemetry-js uses sendBeacon which always operates
-            # in 'withCredentials' mode, which browsers don't allow with an allow-origin of '*'
-            #- "https://pr976--element-call.netlify.app"
-            - "http://*"
+            - "http://call.jefferson.tcc-engenharia.online"
+            - "https://call.jefferson.tcc-engenharia.online"
           allowed_headers:
-            - "*"
+            - "*" # Permitir todos os cabeçalhos
+
+connectors:
+  spanmetrics:
+
 processors:
   batch:
     timeout: 1s
   resource:
     attributes:
-      - key: test.key
-        value: "test-value"
+      - key: "service.name"
+        value: "element-call"
         action: insert
+      - key: "environment"
+        value: "production"
+        action: insert
+
 exporters:
   logging:
     loglevel: info
-  jaeger:
-    endpoint: jaeger-all-in-one:14250
+  otlp:
+    endpoint: jaeger.jefferson.tcc-engenharia.online:4317
     tls:
       insecure: true
+  otlphttp/prometheus:
+    endpoint: http://prometheus:9090/api/v1/otlp
+    tls:
+      insecure: true
+
 extensions:
   health_check:
   pprof:
     endpoint: :1888
   zpages:
     endpoint: :55679
+
 service:
   extensions: [pprof, zpages, health_check]
   pipelines:
     traces:
       receivers: [otlp]
       processors: [batch, resource]
-      exporters: [logging, jaeger]
+      exporters: [logging, otlp]
+    metrics/spanmetrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging, otlphttp/prometheus]
