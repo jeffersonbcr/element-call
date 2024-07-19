@@ -27,6 +27,7 @@
     "@opentelemetry/context-zone": "^1.9.1",
     "@opentelemetry/exporter-jaeger": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.52.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.52.0",
     "@opentelemetry/instrumentation-document-load": "^0.39.0",
     "@opentelemetry/instrumentation-user-interaction": "^0.39.0",
     "@opentelemetry/sdk-trace-web": "^1.9.1",
