@@ -5,7 +5,6 @@ import {
   LocalTrackPublication,
   RemoteTrackPublication,
   ConnectionState,
-  RoomEvent,
 } from "livekit-client";
 import { logger } from "matrix-js-sdk/src/logger";
 import { ElementCallOpenTelemetry } from "./otel";
@@ -22,18 +21,28 @@ async function processParticipantTracks(
   room: Room,
 ) {
   const trackTypes = [
-    { type: "audio", tracks: participant.audioTrackPublications },
-    { type: "video", tracks: participant.videoTrackPublications },
-    { type: "allTracks", tracks: participant.trackPublications },
+    {
+      type: "audio",
+      tracks: participant.audioTrackPublications.values(),
+    },
+    {
+      type: "video",
+      tracks: participant.videoTrackPublications.values(),
+    },
+    {
+      type: "allTracks",
+      tracks: participant.trackPublications.values(),
+    },
   ];
 
-  trackTypes.forEach(({ type: trackType, tracks }) => {
-    tracks.forEach(async (track) => {
+  for (const { type: trackType, tracks } of trackTypes) {
+    for (const track of tracks) {
       try {
         if (track.isSubscribed && track.track) {
           const statsReport = await track.track.getRTCStatsReport();
-          if (statsReport) {
-            statsReport.forEach((stat) => {
+          statsReport?.forEach((stats) => {
+            logger.info("entrou foreach stats");
+            if (statsReport) {
               if (
                 [
                   "inbound-rtp",
@@ -46,34 +55,30 @@ async function processParticipantTracks(
                   "data-channel",
                   "media-source",
                   "media-playout",
-                ].includes(stat.type)
+                ].includes(stats.type)
               ) {
-                // Process and send statistics
-                // logger.info(
-                //   `Room ${room.name}, Stats for ${extractNameFromIdentity(participant.identity)}, Track : ${track.trackSid}, TrackType: ${trackType}, RTCStatsType: ${stat.type}, Stats: ${JSON.stringify(stat)}`,
-                // );
                 processStatsSendToOtelTraces(
-                  stat,
-                  stat.type,
+                  stats,
+                  stats.type,
                   participant,
                   track,
                   trackType,
                   room.name,
                 );
                 processStatsSendToOtelMetrics(
-                  stat,
-                  stat.type,
+                  stats,
+                  stats.type,
                   participant,
                   trackType,
                   room.name,
                 );
               }
-            });
-          } else {
-            logger.info(
-              `No stats available for ${participant.identity}, Track ${track.trackSid}.`,
-            );
-          }
+            } else {
+              logger.info(
+                `No stats available for ${participant.identity}, Track ${track.trackSid}.`,
+              );
+            }
+          });
         } else {
           logger.info(
             `Track ${track.trackSid} by ${participant.identity} is not subscribed.`,
@@ -84,31 +89,25 @@ async function processParticipantTracks(
           `Error collecting stats for ${participant.identity}: ${error}`,
         );
       }
-    });
-  });
+    }
+  }
 }
 
 // Collect RTC statistics
 export async function otelCollectMetricsRtcStats(room: Room): Promise<void> {
-  const intervalId = setInterval(async () => {
-    if (room.state !== ConnectionState.Connected) {
-      logger.info("Room is not connected, skipping stats collection.");
-      return;
-    }
+  if (room.state !== ConnectionState.Connected) {
+    logger.info("Room is not connected, skipping stats collection.");
+    return;
+  }
 
-    // Process stats for remote participants
-    room.remoteParticipants.forEach(async (participant) => {
-      await processParticipantTracks(participant, room);
-    });
+  // Process stats for remotes participants
+  for (const participant of room.remoteParticipants.values()) {
+    await processParticipantTracks(participant, room);
+  }
 
-    // Process stats for local participant
-    await processParticipantTracks(room.localParticipant, room);
-  }, 5000);
-
-  room.once(RoomEvent.Disconnected, () => {
-    clearInterval(intervalId);
-    logger.info("Stopped stats collection due to room disconnection.");
-  });
+  // Process stats for local participant
+  await processParticipantTracks(room.localParticipant, room);
+  ElementCallOpenTelemetry.instance.forceFlush();
 }
 
 export function processStatsSendToOtelTraces(
@@ -508,14 +507,15 @@ export function processStatsSendToOtelMetrics(
   const meterProvider = ElementCallOpenTelemetry.instance.meterProvider;
   const meter = meterProvider.getMeter("element-call-meter");
   const participantName = extractNameFromIdentity(participant.identity);
-  logger.info(
-    "processStatsSendToOtelMetrics: ",
-    stats,
-    statType,
-    participant,
-    trackType,
-    roomName,
-  );
+  logger.info("Entrou metrics");
+  // logger.info(
+  //   "processStatsSendToOtelMetrics: ",
+  //   stats,
+  //   statType,
+  //   participant,
+  //   trackType,
+  //   roomName,
+  // );
   // Process metrics based on stat type
   switch (statType) {
     case "codec":
@@ -2413,5 +2413,4 @@ export function processStatsSendToOtelMetrics(
       );
       break;
   }
-  meterProvider.forceFlush();
 }
