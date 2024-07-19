@@ -14,9 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
+//import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-import { WebTracerProvider } from "@opentelemetry/sdk-trace-web";
+import {
+  BatchSpanProcessor,
+  WebTracerProvider,
+} from "@opentelemetry/sdk-trace-web";
 import {
   MeterProvider,
   PeriodicExportingMetricReader,
@@ -78,16 +81,12 @@ export class ElementCallOpenTelemetry {
       url: metricsCollectorUrl,
     });
 
-    // this.metricProvider = new MeterProvider({
-    //   resource,
-    // });
-
     this.metricProvider = new MeterProvider({
       resource,
       readers: [
         new PeriodicExportingMetricReader({
           exporter: this.metricExporter,
-          exportIntervalMillis: 10000,
+          exportIntervalMillis: 5000,
         }),
       ],
     });
@@ -102,7 +101,16 @@ export class ElementCallOpenTelemetry {
         url: traceCollectorUrl,
       });
       this._provider.addSpanProcessor(
-        new SimpleSpanProcessor(this.otlpExporter),
+        new BatchSpanProcessor(this.otlpExporter, {
+          // The maximum queue size. After the size is reached spans are dropped.
+          maxQueueSize: 500,
+          // The maximum batch size of every export. It must be smaller or equal to maxQueueSize.
+          maxExportBatchSize: 22,
+          // The interval between two consecutive exports
+          scheduledDelayMillis: 50,
+          // How long the export can run before it is cancelled
+          exportTimeoutMillis: 30000,
+        }),
       );
     } else {
       logger.info("OTLP traces collector disabled");
@@ -121,7 +129,7 @@ export class ElementCallOpenTelemetry {
         readers: [
           new PeriodicExportingMetricReader({
             exporter: this.metricExporter,
-            exportIntervalMillis: 10000,
+            exportIntervalMillis: 5000,
           }),
         ],
       });
