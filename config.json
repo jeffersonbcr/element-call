@@ -1,0 +1,16 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://matrix.jefferson.tcc-engenharia.online",
+      "server_name": "jefferson.tcc-engenharia.online"
+    }
+  },
+  "livekit": {
+    "livekit_service_url": "https://livekit.jefferson.tcc-engenharia.online"
+  },
+  "opentelemetry": {
+    "collector_url_traces": "https://collector-gateway.jefferson.tcc-engenharia.online/v1/traces",
+    "collector_url_metrics": "https://collector-gateway.jefferson.tcc-engenharia.online/v1/metrics"
+  },
+  "eula": "https://static.element.io/legal/online-EULA.pdf"
+}
