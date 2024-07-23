@@ -76,7 +76,6 @@ export class ElementCallOpenTelemetry {
     const resource = new Resource({
       [SemanticResourceAttributes.SERVICE_NAME]: SERVICE_NAME,
     });
-
     this.metricExporter = new OTLPMetricExporter({
       url: metricsCollectorUrl,
     });
@@ -86,7 +85,8 @@ export class ElementCallOpenTelemetry {
       readers: [
         new PeriodicExportingMetricReader({
           exporter: this.metricExporter,
-          exportIntervalMillis: 5000,
+          exportIntervalMillis: 60000,
+          exportTimeoutMillis: 30000,
         }),
       ],
     });
@@ -102,13 +102,9 @@ export class ElementCallOpenTelemetry {
       });
       this._provider.addSpanProcessor(
         new BatchSpanProcessor(this.otlpExporter, {
-          // The maximum queue size. After the size is reached spans are dropped.
           maxQueueSize: 500,
-          // The maximum batch size of every export. It must be smaller or equal to maxQueueSize.
-          maxExportBatchSize: 22,
-          // The interval between two consecutive exports
-          scheduledDelayMillis: 50,
-          // How long the export can run before it is cancelled
+          maxExportBatchSize: 100,
+          scheduledDelayMillis: 30000,
           exportTimeoutMillis: 30000,
         }),
       );
@@ -129,7 +125,8 @@ export class ElementCallOpenTelemetry {
         readers: [
           new PeriodicExportingMetricReader({
             exporter: this.metricExporter,
-            exportIntervalMillis: 5000,
+            exportIntervalMillis: 60000,
+            exportTimeoutMillis: 30000,
           }),
         ],
       });
@@ -143,7 +140,11 @@ export class ElementCallOpenTelemetry {
     }
 
     this._provider.addSpanProcessor(new PosthogSpanProcessor());
-    opentelemetry.trace.setGlobalTracerProvider(this._provider);
+
+    if (opentelemetry.trace.setGlobalTracerProvider(this._provider)) {
+      logger.info("Traces provider set successfully");
+    }
+
     if (opentelemetry.metrics.setGlobalMeterProvider(this.metricProvider)) {
       logger.info("Metrics provider set successfully");
     }
@@ -157,13 +158,17 @@ export class ElementCallOpenTelemetry {
     this.metricProvider?.shutdown();
   }
 
-  public forceFlush(): void {
+  public async forceFlush(): Promise<void> {
     this._provider.forceFlush();
     this.metricProvider.forceFlush();
   }
 
   public get isOtlpEnabled(): boolean {
     return Boolean(this.otlpExporter);
+  }
+
+  public get Provider(): WebTracerProvider {
+    return this._provider;
   }
 
   public get tracer(): Tracer {
