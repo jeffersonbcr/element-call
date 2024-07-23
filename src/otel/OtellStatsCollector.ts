@@ -16,7 +16,7 @@ export function extractNameFromIdentity(identity: string): string {
 }
 
 // Function to process tracks for a participant
-export async function otelCollectMetricsRtcStats(livekitRoom: Room) {
+export async function otelCollectRtcStats(livekitRoom: Room) {
   while (true) {
     await collectStatsFromRoom(livekitRoom);
     await new Promise((resolve) => setTimeout(resolve, 40000));

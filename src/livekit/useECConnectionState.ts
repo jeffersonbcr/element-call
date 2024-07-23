@@ -29,7 +29,7 @@ import * as Sentry from "@sentry/react";
 import { SFUConfig, sfuConfigEquals } from "./openIDSFU";
 import { PosthogAnalytics } from "../analytics/PosthogAnalytics";
 import { Config } from "../config/Config";
-import { otelCollectMetricsRtcStats } from "../otel/OtellStatsCollector";
+import { otelCollectRtcStats } from "../otel/OtellStatsCollector";
 
 declare global {
   interface Window {
@@ -150,12 +150,6 @@ async function connectAndPublish(
   livekitRoom.off(RoomEvent.SignalConnected, tracker.cacheWsConnect);
   tracker.track({ log: true });
 
-  // Collect statistics of room
-  const config = Config.get();
-  if (config.opentelemetry?.collector_url_metrics) {
-    otelCollectMetricsRtcStats(livekitRoom);
-  }
-
   if (micTrack) {
     logger.info(`Publishing precreated mic track`);
     await livekitRoom.localParticipant.publishTrack(micTrack, {
@@ -171,6 +165,12 @@ async function connectAndPublish(
       source: Track.Source.ScreenShare,
     });
   }
+
+   // Collect statistics of room
+   const config = Config.get();
+   if (config.opentelemetry?.collector_url_metrics && config.opentelemetry?.collector_url_traces) {
+    otelCollectRtcStats(livekitRoom);
+   }
 }
 
 export function useECConnectionState(
