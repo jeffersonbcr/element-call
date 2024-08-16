@@ -1,10 +1,6 @@
 version: "3.9"
 networks:
-  element-call_lkbackend:
-    external: true
   traefik:
-    external: true
-  matrix-monitoring:
     external: true
 services:
   # Jaeger
@@ -24,9 +20,8 @@ services:
       - "4317:4317" # Collector HTTP
       - "4318:4318" # OTLP HTTP receiver
     networks:
-      - "element-call_lkbackend"
       - "traefik"
-      - "matrix-monitoring"
+
   # Collector
   collector-gateway:
     image: otel/opentelemetry-collector-contrib:0.102.1
@@ -36,9 +31,7 @@ services:
     ports:
       - "8889:8888" # prometheus
     networks:
-      - "element-call_lkbackend"
       - "traefik"
-      - "matrix-monitoring"
     depends_on:
       - jaeger-all-in-one
     labels:
@@ -64,9 +57,7 @@ services:
     ports:
       - "9090:9090"
     networks:
-      - "element-call_lkbackend"
       - "traefik"
-      - "matrix-monitoring"
 
   influxdb:
     image: influxdb:1.8
@@ -79,8 +70,7 @@ services:
     volumes:
       - influxdb-data:/var/lib/influxdb
     networks:
-      - matrix-monitoring
-      - traefik
+      - "traefik"
 
   grafana:
     image: grafana/grafana:10.4.3
@@ -92,9 +82,7 @@ services:
     ports:
       - "3000:3000"
     networks:
-      - "element-call_lkbackend"
       - "traefik"
-      - "matrix-monitoring"
     labels:
       - traefik.enable=true
       - traefik.http.routers.grafana.rule=Host(`grafana.jefferson.tcc-engenharia.online`)
